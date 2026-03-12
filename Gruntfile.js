@@ -3,6 +3,8 @@ const sass = require('sass');
 module.exports = function(grunt) {
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
+        
+        OBSIDIAN_PATH: process.env.OBSIDIAN_PATH || '',
 
         /* 1. Get OBSIDIAN_PATH from .env file */
         env: {
@@ -61,31 +63,19 @@ module.exports = function(grunt) {
             }
         },
 
-        /* 4. Copy final minified CSS to your dev vault
-            Uses templating (<%= ... %>) so it waits for the .env to load first */
         copy: {
-            hot_reload: {
+            toVault: {
                 expand: true,
                 src: 'theme.css',
-                dest: process.env.HOME + '<%= OBSIDIAN_PATH %>', 
-                rename: function(dest, src) {
-                    return dest + 'theme.css';
-                }
+                dest: '<%= OBSIDIAN_PATH %>/',
             }
         },
 
-        /* 5. Watch for changes and run tasks in a logical order */
+        /* 4. Watch for changes and run tasks in a logical order */
         watch: {
             css: {
                 files: ['src/**/*.scss', 'src/**/*.css'],
-                tasks: [
-                    'env:vault', 
-                    'loadenv', 
-                    'sass:unminified', 
-                    'sass:minified', 
-                    'concat_css', 
-                    'copy:hot_reload' /* Fixed: Removed cssmin and duplicate copy */
-                ]
+                tasks: ['sass:unminified', 'sass:minified', 'concat_css', 'copy:toVault', ]
             }
         }
     });
@@ -98,8 +88,14 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-watch');
 
     /* Bridges the gap between the .env file and Grunt's configuration */
-    grunt.registerTask('loadenv', 'Load obsidian dev vault path...', function() {
-        grunt.config('OBSIDIAN_PATH', process.env.OBSIDIAN_PATH);
+    grunt.registerTask('loadenv', function() {
+        var path = process.env.OBSIDIAN_PATH;
+        if (!path) {
+            grunt.log.error("OBSIDIAN_PATH not found in .env!");
+        } else {
+            grunt.config('OBSIDIAN_PATH', path);
+            grunt.log.ok("Target Vault Path: " + path);
+        }
     });
 
     /* Default command triggered when you just type `grunt` in terminal */
